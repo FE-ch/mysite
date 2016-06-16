@@ -1,13 +1,81 @@
 # -*- coding: utf-8 -*-
 # @Author: root
 # @Date:   2016-06-16 13:20:48
-# @Last Modified by:   root
-# @Last Modified time: 2016-06-16 13:20:56
+# @Last Modified by:   ShawnFiend
+# @Last Modified time: 2016-06-17 01:27:27
 
+# from django.http import Http404
+from django.shortcuts import render, get_object_or_404
+from django.http import HttpResponse, HttpResponseRedirect
+# from django.template import loader
+from django.core.urlresolvers import reverse
+from django.views import generic
 
-from django.shortcuts import render
-from django.http import HttpResponse
+from .models import Question, Choice
+
+'''
+Bellow are some old ways to define views, do not use them anymore
+
 
 # Create your views here.
 def index(request):
-    return HttpResponse("Hello, world. You're at the polls index.")
+    latest_question_list = Question.objects.order_by('-pub_date')[:5]
+    context = {
+        'latest_question_list': latest_question_list,
+    }
+    return render(request, 'polls/index.html', context)
+
+def detail(request, question_id):
+    context = {
+        'question': question,
+    }
+    # try:
+    #     question = Question.objects.get(pk=question_id)
+
+    # except Question.DoesNotExist:
+    #     raise Http404("Question does not exist")
+
+    question = get_object_or_404(Question, pk=question_id)
+    return render(request, 'polls/detail.html', context)
+
+def results(request, question_id):
+    context = {
+        'question': question,
+    }
+    question = get_object_or_404(Question, pk=question_id)
+    return render(request, 'polls/results.html', )
+'''
+
+# use Django's generic views instead
+class IndexView(generic.ListView):
+    template_name = 'polls/index.html'
+    context_object_name = 'latest_question_list'
+
+    def get_queryset(self):
+        # return the last five published questions.
+        return Question.objects.order_by('-pub_date')[:5]
+
+class DetailView(generic.DetailView):
+    model = Question
+    template_name = 'polls/detail.html'
+
+class ResultsView(generic.DetailView):
+    model = Question
+    template_name = 'polls/results.html'
+
+def vote(request, question_id):
+    context = {
+        'question': question,
+        'error_message': "You didn't select a choice.",
+    }
+    question = get_object_or_404(Question, pk=question_id)
+    try:
+        selected_choice = question.choice_set.get(pk=request.POST['choice'])
+    except (KeyError, Choice.DoseNotExist):
+         # Redisplay the question voting form.
+        return render(request, 'polls/detail.html', context)
+    else:
+        selected_choice.votes += 1
+        selected_choice.save()
+        # Always return an HttpResponseRedirect after successfully dealing with POST data. This prevents data from being posted twice if a user hits the Back button.
+        return HttpResponseRedirect(reverse('polls:results', args=(question.id,)))
